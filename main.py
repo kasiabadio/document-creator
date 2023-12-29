@@ -2,6 +2,7 @@ from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import *
 import sys
 import sqlite3
+import time
 cursor = None
 connection = None
 
@@ -12,14 +13,30 @@ def check_db_connection(connection):
     except Exception as ex:
         return False
     
-
 def create_new_tables():
     global cursor
-    cursor.execute("CREATE TABLE test(id, nazwa, liczba_pytan)")
-    cursor.execute("CREATE TABLE test_pytanie(id_testu, id_pytania)")
-    cursor.execute("CREATE TABLE pytanie(id, nazwa, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD)")
+    global connection
+    cursor.execute("CREATE TABLE test(id, nazwa, liczba_pytan);")
+    cursor.execute("CREATE TABLE test_pytanie(id_testu, id_pytania);")
+    cursor.execute("CREATE TABLE pytanie(id, nazwa, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD);")
+    connection.commit()
     cursor.close()
 
+def get_latest_id_question():
+    global connection
+    global cursor
+    
+    cursor.execute("SELECT id FROM pytanie ORDER BY id DESC LIMIT 1;")
+    connection.commit()
+    result = cursor.fetchone()
+    if result == None:
+        return 0
+    number = int(result[0])
+    return number
+
+ 
+def get_latest_id_test():
+    pass
 
 class MainAppWindow(QMainWindow):
     def __init__(self):
@@ -101,23 +118,49 @@ class MainAppWindow(QMainWindow):
 
     def add_new_question(self):
         global cursor
+        global connection
+        connection = sqlite3.connect("test-gen-db.db")
         if check_db_connection(connection):
             cursor = connection.cursor()
             print("Dodawanie pytania do bazy danych")
-            cursor.execute("""INSERT INTO pytanie 
-                                (id, nazwa, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD) 
-                                VALUES (1, {0}, {1}, {2}, {3}, {4}, {5})""".format(
-                                    self.name.text(),
-                                    self.question.text(),
-                                    self.answerA.text(),
-                                    self.answerB.text(),
-                                    self.answerC.text(),
-                                    self.answerD.text()
-                                ))
-            cursor.close()
+            id = get_latest_id_question()     
+            if id != -1:
+                current_id = id + 1
+                insert_statement = """INSERT INTO pytanie 
+                                    (id, nazwa, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD) 
+                                    VALUES ({0}, "{1}", "{2}", "{3}", "{4}", "{5}", "{6}");""".format(
+                                        current_id,
+                                        self.name.text(),
+                                        self.question.text(),
+                                        self.answerA.text(),
+                                        self.answerB.text(),
+                                        self.answerC.text(),
+                                        self.answerD.text()
+                                    )
+                print(insert_statement)
+                cursor.execute(insert_statement)
+                time.sleep(5)
+                connection.commit()
+
+            else:
+                print("Błąd wczytania id z bazy danych pytanie")
+            
+            inserted_id = get_latest_id_question()
+            if inserted_id == id + 1:
+                print("Pytanie zostało dodane prawidłowo")
+            else:
+                print("Pytanie nie zostało dodane prawidłowo")
 
         else:
             print("Błąd dodawania do bazy danych: brak połączenia")
+        
+        cursor.close()
+        connection.close()
+        
+
+    def generate_test(self):
+        global cursor
+        pass
 
 
 def window():
@@ -131,14 +174,15 @@ def window():
         cursor = connection.cursor()
         if create_new:
             create_new_tables()
+        
+        connection.close()
 
         win = MainAppWindow()
         win.show()
     else:
         print("Brak połączenia z bazą danych")
 
-   
-    connection.close()
+    
     sys.exit(app.exec())
 
 window()
