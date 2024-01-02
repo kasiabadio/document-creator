@@ -18,7 +18,9 @@ def create_new_tables():
     global connection
     cursor.execute("CREATE TABLE test(id, nazwa, liczba_pytan);")
     cursor.execute("CREATE TABLE test_pytanie(id_testu, id_pytania);")
-    cursor.execute("CREATE TABLE pytanie(id, kategoria, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD);")
+    cursor.execute("CREATE TABLE pytanie(id, kategoria, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD, is_correct);")
+    cursor.execute("CREATE TABLE nadkategoria(id, nazwa);")
+    cursor.execute("CREATE TABLE subkategoria(id, nazwa, nadkategoria_nazwa);")
     connection.commit()
     cursor.close()
 
@@ -45,13 +47,13 @@ def get_latest_id_test():
         return 0
     number = int(result[0])
     return number
-
+    
 
 class MainAppWindow(QMainWindow):
     def __init__(self):
         super(MainAppWindow, self).__init__()
         self.setGeometry(100, 100, 1000, 600)
-        self.setWindowTitle("Main window")
+        self.setWindowTitle("Document creator")
         self.main_layout = QGridLayout(self)
         self.setLayout(self.main_layout)
         self.initUI()
@@ -64,13 +66,17 @@ class MainAppWindow(QMainWindow):
         self.widget_add_to_db = QtWidgets.QWidget(self)
         self.tab1UI()
 
-        self.widget_show_test_menu = QtWidgets.QWidget(self)
+        self.widget_add_category = QtWidgets.QWidget(self)
         self.tab2UI()
 
-        self.widget_generate_test_menu = QtWidgets.QWidget(self)
+        self.widget_show_test_menu = QtWidgets.QWidget(self)
         self.tab3UI()
 
+        self.widget_generate_test_menu = QtWidgets.QWidget(self)
+        self.tab4UI()
+
         self.tab_widget.addTab(self.widget_add_to_db, "Dodaj do bazy")
+        self.tab_widget.addTab(self.widget_add_category, "Dodaj kategorię")
         self.tab_widget.addTab(self.widget_show_test_menu, "Wyświetl test")
         self.tab_widget.addTab(self.widget_generate_test_menu, "Wygeneruj test")
 
@@ -78,52 +84,90 @@ class MainAppWindow(QMainWindow):
         self.show()
 
     def tab1UI(self):
-        self.layout = QFormLayout()
+
+        self.layout = QGridLayout()
         self.widget_add_to_db.setLayout(self.layout)
 
         self.category = QtWidgets.QLineEdit(self)
         self.category.setFixedWidth(500)
-        self.layout.addRow("Wpisz kategorię pytania: ", self.category)
+        self.layout.addWidget(QLabel("Wpisz kategorię pytania: "), 0, 0)
+        self.layout.addWidget(self.category, 0, 1)
 
         self.question = QtWidgets.QPlainTextEdit(self)
         self.question.setFixedWidth(500)
         self.question.setFixedHeight(100)
-        self.layout.addRow("Wpisz pytanie: ", self.question)
-
+        self.layout.addWidget(QLabel("Wpisz pytanie: "), 1, 0)
+        self.layout.addWidget(self.question, 1, 1)
+        
         self.answerA = QtWidgets.QPlainTextEdit(self)
         self.answerA.setFixedWidth(500)
-        self.question.setFixedHeight(100)
-        self.layout.addRow("Wpisz odpowiedź A:", self.answerA)
+        self.answerA.setFixedHeight(100)
+        self.layout.addWidget(QLabel("Wpisz odpowiedź A: "), 2, 0)
+        self.layout.addWidget(self.answerA, 2, 1)
+
+        self.is_answerA_correct_cbx = QCheckBox("")
+        self.is_answerA_correct_cbx.setChecked(False)
+        self.layout.addWidget(self.is_answerA_correct_cbx, 2, 2)
 
         self.answerB = QtWidgets.QPlainTextEdit(self)
         self.answerB.setFixedWidth(500)
         self.question.setFixedHeight(100)
-        self.layout.addRow("Wpisz odpowiedź B:", self.answerB)
+        self.layout.addWidget(QLabel("Wpisz odpowiedź B: "), 3, 0)
+        self.layout.addWidget(self.answerB, 3, 1)
+
+        self.is_answerB_correct_cbx = QCheckBox("")
+        self.is_answerB_correct_cbx.setChecked(False)
+        self.layout.addWidget(self.is_answerB_correct_cbx, 3, 2)
 
         self.answerC = QtWidgets.QPlainTextEdit(self)
         self.answerC.setFixedWidth(500)
         self.question.setFixedHeight(100)
-        self.layout.addRow("Wpisz odpowiedź C:", self.answerC)
+        self.layout.addWidget(QLabel("Wpisz odpowiedź C: "), 4, 0)
+        self.layout.addWidget(self.answerC, 4, 1)
+
+        self.is_answerC_correct_cbx = QCheckBox("")
+        self.is_answerC_correct_cbx.setChecked(False)
+        self.layout.addWidget(self.is_answerC_correct_cbx, 4, 2)
 
         self.answerD = QtWidgets.QPlainTextEdit(self)
         self.answerD.setFixedWidth(500)
         self.question.setFixedHeight(100)
-        self.layout.addRow("Wpisz odpowiedź D:", self.answerD)
+        self.layout.addWidget(QLabel("Wpisz odpowiedź D: "), 5, 0)
+        self.layout.addWidget(self.answerD, 5, 1)
+
+        self.is_answerD_correct_cbx = QCheckBox("")
+        self.is_answerD_correct_cbx.setChecked(False)
+        self.layout.addWidget(self.is_answerD_correct_cbx, 5, 2)
 
         self.add_question_btn = QPushButton()
         self.add_question_btn.setObjectName("add question")
         self.add_question_btn.setText("Dodaj pytanie")
-        self.layout.addRow("Dodaj pytanie do bazy pytań: ", self.add_question_btn)
+        self.layout.addWidget(QLabel("Dodaj pytanie do bazy pytań: "), 6, 0)
+        self.layout.addWidget(self.add_question_btn, 6, 1)
 
         self.add_question_btn.clicked.connect(self.add_new_question)
 
+    def get_correct_answer(self):
+        if (self.is_answerA_correct_cbx.isChecked()):
+            return "odpowiedzA"
+        if (self.is_answerB_correct_cbx.isChecked()):
+            return "odpowiedzB"
+        if (self.is_answerC_correct_cbx.isChecked()):
+            return "odpowiedzC"
+        if (self.is_answerD_correct_cbx.isChecked()):
+            return "odpowiedzD"
+        return False
+
     def tab2UI(self):
+        pass
+
+    def tab3UI(self):
         self.layout = QFormLayout()
         self.widget_show_test_menu.setLayout(self.layout)
         self.test_name = QtWidgets.QLineEdit(self)
         self.layout.addRow("Nazwa testu: ", self.test_name)
         
-    def tab3UI(self):
+    def tab4UI(self):
         self.layout = QFormLayout()
         self.widget_generate_test_menu.setLayout(self.layout)
         self.test_name = QtWidgets.QLineEdit(self)
@@ -146,16 +190,16 @@ class MainAppWindow(QMainWindow):
         self.generate_test_btn.clicked.connect(self.generate_test)
 
     def check_is_empty_tab1UI(self):
-        if (self.category.text() == "" or self.question.text() == ""
-            or self.answerA.text() == "" or self.answerB.text() == ""
-            or self.answerC.text() == "" or self.answerD.text() == ""):
+        if (self.category.text() == "" or self.question.toPlainText() == ""
+            or self.answerA.toPlainText() == "" or self.answerB.toPlainText() == ""
+            or self.answerC.toPlainText() == "" or self.answerD.toPlainText() == ""):
             return True
         return False
 
-    def check_is_empty_tab2UI(self):
+    def check_is_empty_tab3UI(self):
         pass
 
-    def check_is_empty_tab3UI(self):
+    def check_is_empty_tab4UI(self):
         if (self.test_name.text() == "" or self.category_of_questions.text() == "" or 
             self.number_of_questions.text() == ""):
             return True
@@ -194,15 +238,16 @@ class MainAppWindow(QMainWindow):
                 if id != -1:
                     current_id = id + 1
                     insert_statement = """INSERT INTO pytanie 
-                                        (id, nazwa, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD) 
-                                        VALUES ({0}, "{1}", "{2}", "{3}", "{4}", "{5}", "{6}");""".format(
+                                        (id, kategoria, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD, is_correct) 
+                                        VALUES ({0}, "{1}", "{2}", "{3}", "{4}", "{5}", "{6}", "{7}");""".format(
                                             current_id,
                                             self.category.text(),
-                                            self.question.text(),
-                                            self.answerA.text(),
-                                            self.answerB.text(),
-                                            self.answerC.text(),
-                                            self.answerD.text()
+                                            self.question.toPlainText(),
+                                            self.answerA.toPlainText(),
+                                            self.answerB.toPlainText(),
+                                            self.answerC.toPlainText(),
+                                            self.answerD.toPlainText(),
+                                            self.get_correct_answer()
                                         )
                     print(insert_statement)
                     cursor.execute(insert_statement)
@@ -232,7 +277,7 @@ class MainAppWindow(QMainWindow):
         global cursor
         global connection
 
-        is_empty = self.check_is_empty_tab3UI()
+        is_empty = self.check_is_empty_tab4UI()
         if is_empty:
             self.info_not_all_fields()
         else:

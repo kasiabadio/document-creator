@@ -12,4 +12,4 @@ def delete_from_table(table, id):
 connection = sqlite3.connect("test-gen-db.db")
 cursor = connection.cursor()
 
-#delete_from_table("test", 1)
+delete_from_table("pytanie", 2)
