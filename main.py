@@ -18,29 +18,17 @@ def create_new_tables():
     global connection
     cursor.execute("CREATE TABLE test(id, nazwa, liczba_pytan);")
     cursor.execute("CREATE TABLE test_pytanie(id_testu, id_pytania);")
-    cursor.execute("CREATE TABLE pytanie(id, kategoria, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD, is_correct);")
+    cursor.execute("CREATE TABLE pytanie(id, kategoria, subkategoria, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD, is_correct);")
     cursor.execute("CREATE TABLE nadkategoria(id, nazwa);")
     cursor.execute("CREATE TABLE subkategoria(id, nazwa, nadkategoria_nazwa);")
     connection.commit()
     cursor.close()
 
-def get_latest_id_question():
+def get_latest_id(table):
     global connection
     global cursor
     
-    cursor.execute("SELECT id FROM pytanie ORDER BY id DESC LIMIT 1;")
-    connection.commit()
-    result = cursor.fetchone()
-    if result == None:
-        return 0
-    number = int(result[0])
-    return number
-
-def get_latest_id_test():
-    global connection
-    global cursor
-    
-    cursor.execute("SELECT id FROM test ORDER BY id DESC LIMIT 1;")
+    cursor.execute("SELECT id FROM " + table + " ORDER BY id DESC LIMIT 1;")
     connection.commit()
     result = cursor.fetchone()
     if result == None:
@@ -93,57 +81,58 @@ class MainAppWindow(QMainWindow):
         self.layout.addWidget(QLabel("Wpisz kategorię pytania: "), 0, 0)
         self.layout.addWidget(self.category, 0, 1)
 
+        self.subcategory = QtWidgets.QLineEdit(self)
+        self.subcategory.setFixedWidth(500)
+        self.layout.addWidget(QLabel("Wpisz podkategorię pytania: "), 1, 0)
+        self.layout.addWidget(self.subcategory, 1, 1)
+
         self.question = QtWidgets.QPlainTextEdit(self)
         self.question.setFixedWidth(500)
         self.question.setFixedHeight(100)
-        self.layout.addWidget(QLabel("Wpisz pytanie: "), 1, 0)
-        self.layout.addWidget(self.question, 1, 1)
+        self.layout.addWidget(QLabel("Wpisz pytanie: "), 2, 0)
+        self.layout.addWidget(self.question, 2, 1)
         
         self.answerA = QtWidgets.QPlainTextEdit(self)
         self.answerA.setFixedWidth(500)
-        self.answerA.setFixedHeight(100)
-        self.layout.addWidget(QLabel("Wpisz odpowiedź A: "), 2, 0)
-        self.layout.addWidget(self.answerA, 2, 1)
+        self.layout.addWidget(QLabel("Wpisz odpowiedź A: "), 3, 0)
+        self.layout.addWidget(self.answerA, 3, 1)
 
         self.is_answerA_correct_cbx = QCheckBox("")
         self.is_answerA_correct_cbx.setChecked(False)
-        self.layout.addWidget(self.is_answerA_correct_cbx, 2, 2)
+        self.layout.addWidget(self.is_answerA_correct_cbx, 3, 2)
 
         self.answerB = QtWidgets.QPlainTextEdit(self)
         self.answerB.setFixedWidth(500)
-        self.question.setFixedHeight(100)
-        self.layout.addWidget(QLabel("Wpisz odpowiedź B: "), 3, 0)
-        self.layout.addWidget(self.answerB, 3, 1)
+        self.layout.addWidget(QLabel("Wpisz odpowiedź B: "), 4, 0)
+        self.layout.addWidget(self.answerB, 4, 1)
 
         self.is_answerB_correct_cbx = QCheckBox("")
         self.is_answerB_correct_cbx.setChecked(False)
-        self.layout.addWidget(self.is_answerB_correct_cbx, 3, 2)
+        self.layout.addWidget(self.is_answerB_correct_cbx, 4, 2)
 
         self.answerC = QtWidgets.QPlainTextEdit(self)
         self.answerC.setFixedWidth(500)
-        self.question.setFixedHeight(100)
-        self.layout.addWidget(QLabel("Wpisz odpowiedź C: "), 4, 0)
-        self.layout.addWidget(self.answerC, 4, 1)
+        self.layout.addWidget(QLabel("Wpisz odpowiedź C: "), 5, 0)
+        self.layout.addWidget(self.answerC, 5, 1)
 
         self.is_answerC_correct_cbx = QCheckBox("")
         self.is_answerC_correct_cbx.setChecked(False)
-        self.layout.addWidget(self.is_answerC_correct_cbx, 4, 2)
+        self.layout.addWidget(self.is_answerC_correct_cbx, 5, 2)
 
         self.answerD = QtWidgets.QPlainTextEdit(self)
         self.answerD.setFixedWidth(500)
-        self.question.setFixedHeight(100)
-        self.layout.addWidget(QLabel("Wpisz odpowiedź D: "), 5, 0)
-        self.layout.addWidget(self.answerD, 5, 1)
+        self.layout.addWidget(QLabel("Wpisz odpowiedź D: "), 6, 0)
+        self.layout.addWidget(self.answerD, 6, 1)
 
         self.is_answerD_correct_cbx = QCheckBox("")
         self.is_answerD_correct_cbx.setChecked(False)
-        self.layout.addWidget(self.is_answerD_correct_cbx, 5, 2)
+        self.layout.addWidget(self.is_answerD_correct_cbx, 6, 2)
 
         self.add_question_btn = QPushButton()
         self.add_question_btn.setObjectName("add question")
         self.add_question_btn.setText("Dodaj pytanie")
-        self.layout.addWidget(QLabel("Dodaj pytanie do bazy pytań: "), 6, 0)
-        self.layout.addWidget(self.add_question_btn, 6, 1)
+        self.layout.addWidget(QLabel("Dodaj pytanie do bazy pytań: "), 7, 0)
+        self.layout.addWidget(self.add_question_btn, 7, 1)
 
         self.add_question_btn.clicked.connect(self.add_new_question)
 
@@ -159,7 +148,34 @@ class MainAppWindow(QMainWindow):
         return False
 
     def tab2UI(self):
-        pass
+        self.layout = QFormLayout()
+        self.widget_add_category.setLayout(self.layout)
+
+        self.main_category = QtWidgets.QLineEdit(self)
+        self.main_category.setFixedWidth(500)
+        self.layout.addRow("Dodaj główną kategorię: ", self.main_category)
+
+        self.add_main_category_btn = QPushButton()
+        self.add_main_category_btn.setObjectName("add main category")
+        self.add_main_category_btn.setText("Dodaj kategorię")
+        self.layout.addRow("Dodaj kategorię do bazy kategorii: ", self.add_main_category_btn)
+
+        self.sub_category = QtWidgets.QLineEdit(self)
+        self.sub_category.setFixedWidth(500)
+        self.layout.addRow("Dodaj podkategorię: ", self.sub_category)
+
+        self.super_category = QtWidgets.QLineEdit(self)
+        self.super_category.setFixedWidth(500)
+        self.layout.addRow("Wybierz nadkategorię: ", self.super_category)
+
+        self.add_sub_category_btn = QPushButton()
+        self.add_sub_category_btn.setObjectName("add sub category")
+        self.add_sub_category_btn.setText("Dodaj podkategorię")
+        self.layout.addRow("Dodaj podkategorię do bazy podkategorii: ", self.add_sub_category_btn)
+
+        self.add_main_category_btn.clicked.connect(self.add_main_category)
+        self.add_sub_category_btn.clicked.connect(self.add_sub_category)
+
 
     def tab3UI(self):
         self.layout = QFormLayout()
@@ -188,6 +204,7 @@ class MainAppWindow(QMainWindow):
         self.layout.addRow("Dodaj test do bazy testów: ", self.generate_test_btn)
 
         self.generate_test_btn.clicked.connect(self.generate_test)
+        
 
     def check_is_empty_tab1UI(self):
         if (self.category.text() == "" or self.question.toPlainText() == ""
@@ -214,6 +231,12 @@ class MainAppWindow(QMainWindow):
     def info_incorrect_add_question(self):
         QMessageBox.warning(self, 'Nie dodano pytania do bazy danych!', 'Błąd dodawania pytania do bazy.')
 
+    def info_correct_add_category(self):
+        QMessageBox.information(self, 'Poprawnie dodano kategorię do bazy danych!', 'Mozesz dodać kolejną kategorię.')
+
+    def info_incorrect_add_category(self):
+        QMessageBox.warning(self, 'Nie dodano kategorii do bazy danych!', 'Błąd dodawania kategorii do bazy.')
+
     def info_correct_add_test(self):
         QMessageBox.information(self, 'Poprawnie dodano test do bazy danych!', 'Mozesz dodać kolejny test.')
 
@@ -234,14 +257,15 @@ class MainAppWindow(QMainWindow):
             if check_db_connection(connection):
                 cursor = connection.cursor()
                 print("Dodawanie pytania do bazy danych")
-                id = get_latest_id_question()     
+                id = get_latest_id("pytanie")     
                 if id != -1:
                     current_id = id + 1
                     insert_statement = """INSERT INTO pytanie 
-                                        (id, kategoria, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD, is_correct) 
-                                        VALUES ({0}, "{1}", "{2}", "{3}", "{4}", "{5}", "{6}", "{7}");""".format(
+                                        (id, kategoria, subkategoria, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD, is_correct) 
+                                        VALUES ({0}, "{1}", "{2}", "{3}", "{4}", "{5}", "{6}", "{7}", "{8}");""".format(
                                             current_id,
                                             self.category.text(),
+                                            self.subcategory.text(),
                                             self.question.toPlainText(),
                                             self.answerA.toPlainText(),
                                             self.answerB.toPlainText(),
@@ -257,10 +281,16 @@ class MainAppWindow(QMainWindow):
                 else:
                     print("Błąd wczytania id z bazy danych pytanie")
                 
-                inserted_id = get_latest_id_question()
+                inserted_id = get_latest_id("pytanie")
                 if inserted_id == id + 1:
                     print("Pytanie zostało dodane prawidłowo")
                     self.info_correct_add_question()
+                    self.question.setPlainText("")
+                    self.answerA.setPlainText("")
+                    self.answerB.setPlainText("")
+                    self.answerC.setPlainText("")
+                    self.answerD.setPlainText("")
+
                 else:
                     print("Pytanie nie zostało dodane prawidłowo")
                     self.info_incorrect_add_question()
@@ -272,6 +302,90 @@ class MainAppWindow(QMainWindow):
             cursor.close()
             connection.close()
             
+
+    def add_main_category(self):
+        global cursor
+        global connection
+
+        if (self.main_category.text() == ""):
+            self.info_not_all_fields()
+        else:
+            connection = sqlite3.connect("test-gen-db.db")
+            if check_db_connection(connection):
+                cursor = connection.cursor()
+                id = get_latest_id("nadkategoria")
+                if id != -1:
+                    current_id = id + 1
+                    insert_statement = """INSERT INTO nadkategoria
+                                        (id, nazwa) 
+                                        VALUES ({0}, "{1}");""".format(
+                                            current_id,
+                                            self.main_category.text()
+                                        )
+                    print(insert_statement)
+                    cursor.execute(insert_statement)
+                    time.sleep(5)
+                    connection.commit()
+
+                else:
+                    print("Błąd wczytania id z bazy danych pytanie")
+                
+                inserted_id = get_latest_id("nadkategoria")
+                if inserted_id == id + 1:
+                    print("Kategoria została dodana prawidłowo")
+                    self.info_correct_add_category()
+                    self.main_category.setText("")
+                else:
+                    print("Kategoria nie została dodana prawidłowo")
+                    self.info_incorrect_add_category()
+
+            else:
+                print("Błąd dodawania do bazy danych: brak połączenia")
+                self.info_incorrect_add_category()
+
+
+    def add_sub_category(self):
+        global cursor
+        global connection
+
+        if (self.sub_category.text() == ""):
+            self.info_not_all_fields()
+        else:
+            connection = sqlite3.connect("test-gen-db.db")
+            if check_db_connection(connection):
+                cursor = connection.cursor()
+                id = get_latest_id("subkategoria")
+                if id != -1:
+                    current_id = id + 1
+                    insert_statement = """INSERT INTO subkategoria
+                                        (id, nazwa, nadkategoria_nazwa) 
+                                        VALUES ({0}, "{1}", "{2}");""".format(
+                                            current_id,
+                                            self.sub_category.text(),
+                                            self.super_category.text()
+                                        )
+                    print(insert_statement)
+                    cursor.execute(insert_statement)
+                    time.sleep(5)
+                    connection.commit()
+
+                else:
+                    print("Błąd wczytania id z bazy danych subkategoria")
+                
+                inserted_id = get_latest_id("subkategoria")
+                if inserted_id == id + 1:
+                    print("Subkategoria została dodana prawidłowo")
+                    self.info_correct_add_category()
+                    self.sub_category.setText("")
+                    self.super_category.setText("")
+                else:
+                    print("Subkategoria nie została dodana prawidłowo")
+                    self.info_incorrect_add_category()
+
+            else:
+                print("Błąd dodawania do bazy danych: brak połączenia")
+                self.info_incorrect_add_category()
+
 
     def generate_test(self):
         global cursor
@@ -285,7 +399,7 @@ class MainAppWindow(QMainWindow):
             if check_db_connection(connection):
                 cursor = connection.cursor()
                 print("Dodawanie testu do bazy testów")
-                id = get_latest_id_test()
+                id = get_latest_id("test")
                 if id != -1:
                     current_id = id + 1
                     insert_statement = """INSERT INTO test
@@ -303,7 +417,7 @@ class MainAppWindow(QMainWindow):
                 else:
                     print("Błąd wczytania id z bazy danych test")
             
-                inserted_id = get_latest_id_test()
+                inserted_id = get_latest_id("test")
                 if inserted_id == id + 1:
                     print("Test został dodany prawidłowo")
                     self.info_correct_add_test()

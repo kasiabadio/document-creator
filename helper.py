@@ -12,4 +12,6 @@ def delete_from_table(table, id):
 connection = sqlite3.connect("test-gen-db.db")
 cursor = connection.cursor()
 
-delete_from_table("pytanie", 2)
+delete_from_table("subkategoria", 3)
+delete_from_table("subkategoria", 2)
+delete_from_table("subkategoria", 1)
