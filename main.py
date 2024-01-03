@@ -37,6 +37,44 @@ def get_latest_id(table):
     return number
     
 
+def get_categories_names():
+    global connection
+    global cursor
+
+    connection = sqlite3.connect("test-gen-db.db")
+    categories = []
+    if check_db_connection(connection):
+        cursor = connection.cursor()
+        cursor.execute("SELECT nazwa FROM nadkategoria;")
+        connection.commit()
+        result = cursor.fetchall()
+        for item in result:
+            categories.append(item[0])
+    
+    cursor.close()
+    connection.close()
+    return categories
+
+
+def get_subcategories_names(category_name):
+    global connection
+    global cursor
+
+    connection = sqlite3.connect("test-gen-db.db")
+    subcategories = []
+    if check_db_connection(connection):
+        cursor = connection.cursor()
+        cursor.execute("SELECT nazwa FROM subkategoria WHERE nadkategoria_nazwa = '" + category_name + "';")
+        connection.commit()
+        result = cursor.fetchall()
+        for item in result:
+            subcategories.append(item[0])
+
+    cursor.close()
+    connection.close()
+    return subcategories
+
+
 class MainAppWindow(QMainWindow):
     def __init__(self):
         super(MainAppWindow, self).__init__()
@@ -76,15 +114,23 @@ class MainAppWindow(QMainWindow):
         self.layout = QGridLayout()
         self.widget_add_to_db.setLayout(self.layout)
 
-        self.category = QtWidgets.QLineEdit(self)
-        self.category.setFixedWidth(500)
+        self.combo_category = QComboBox(self)
+        self.combo_category.setFixedWidth(500)
         self.layout.addWidget(QLabel("Wpisz kategorię pytania: "), 0, 0)
-        self.layout.addWidget(self.category, 0, 1)
+        self.layout.addWidget(self.combo_category, 0, 1)
+        self.categories = get_categories_names()
+        for category in self.categories:
+            self.combo_category.addItem(category)
 
-        self.subcategory = QtWidgets.QLineEdit(self)
-        self.subcategory.setFixedWidth(500)
+        self.combo_subcategory = QComboBox(self)
+        self.combo_subcategory.setFixedWidth(500)
         self.layout.addWidget(QLabel("Wpisz podkategorię pytania: "), 1, 0)
-        self.layout.addWidget(self.subcategory, 1, 1)
+        self.layout.addWidget(self.combo_subcategory, 1, 1)
+        self.subcategories = get_subcategories_names(str(self.combo_category.currentText()))
+        for subcategory in self.subcategories:
+            self.combo_subcategory.addItem(subcategory)
+        
+        self.combo_category.currentTextChanged.connect(self.update_subcategory_combobox)
 
         self.question = QtWidgets.QPlainTextEdit(self)
         self.question.setFixedWidth(500)
@@ -164,9 +210,12 @@ class MainAppWindow(QMainWindow):
         self.sub_category.setFixedWidth(500)
         self.layout.addRow("Dodaj podkategorię: ", self.sub_category)
 
-        self.super_category = QtWidgets.QLineEdit(self)
-        self.super_category.setFixedWidth(500)
-        self.layout.addRow("Wybierz nadkategorię: ", self.super_category)
+        self.combo_supercategory = QComboBox(self)
+        self.combo_supercategory.setFixedWidth(500)
+        self.layout.addRow("Wybierz nadkategorię: ", self.combo_supercategory)
+        self.supercategories = get_categories_names()
+        for category in self.supercategories:
+            self.combo_supercategory.addItem(category)
 
         self.add_sub_category_btn = QPushButton()
         self.add_sub_category_btn.setObjectName("add sub category")
@@ -190,9 +239,21 @@ class MainAppWindow(QMainWindow):
         self.test_name.setFixedWidth(500)
         self.layout.addRow("Nazwa testu: ", self.test_name)
 
-        self.category_of_questions = QtWidgets.QLineEdit(self)
-        self.category_of_questions.setFixedWidth(500)
-        self.layout.addRow("Kategoria pytań: ", self.category_of_questions)
+        self.combo_category_of_questions = QComboBox(self)
+        self.combo_category_of_questions.setFixedWidth(500)
+        self.layout.addRow("Kategoria pytań: ", self.combo_category_of_questions)
+        self.supercategories = get_categories_names()
+        for category in self.supercategories:
+            self.combo_category_of_questions.addItem(category)
+
+        self.combo_subcategory_of_questions = QComboBox(self)
+        self.combo_subcategory_of_questions.setFixedWidth(500)
+        self.layout.addRow(QLabel("Podkategoria pytania: "), self.combo_subcategory_of_questions)
+        self.subcategories = get_subcategories_names(str(self.combo_category.currentText()))
+        for subcategory in self.subcategories:
+            self.combo_subcategory_of_questions.addItem(subcategory)
+        
+        self.combo_category_of_questions.currentTextChanged.connect(self.update_subcategory_combobox2)
 
         self.number_of_questions = QtWidgets.QLineEdit(self)
         self.number_of_questions.setFixedWidth(500)
@@ -207,8 +268,8 @@ class MainAppWindow(QMainWindow):
         
 
     def check_is_empty_tab1UI(self):
-        if (self.category.text() == "" or self.question.toPlainText() == ""
-            or self.answerA.toPlainText() == "" or self.answerB.toPlainText() == ""
+        if (str(self.combo_category.currentText()) == "" or str(self.combo_subcategory.currentText()) == ""
+            or self.question.toPlainText() == "" or self.answerA.toPlainText() == "" or self.answerB.toPlainText() == ""
             or self.answerC.toPlainText() == "" or self.answerD.toPlainText() == ""):
             return True
         return False
@@ -264,8 +325,8 @@ class MainAppWindow(QMainWindow):
                                         (id, kategoria, subkategoria, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD, is_correct) 
                                         VALUES ({0}, "{1}", "{2}", "{3}", "{4}", "{5}", "{6}", "{7}", "{8}");""".format(
                                             current_id,
-                                            self.category.text(),
-                                            self.subcategory.text(),
+                                            self.combo_category.currentText(),
+                                            self.combo_subcategory.currentText(),
                                             self.question.toPlainText(),
                                             self.answerA.toPlainText(),
                                             self.answerB.toPlainText(),
@@ -302,6 +363,21 @@ class MainAppWindow(QMainWindow):
             cursor.close()
             connection.close()
             
+
+    def update_subcategory_combobox(self):
+
+        self.combo_subcategory.clear()
+        self.subcategories = get_subcategories_names(str(self.combo_category.currentText()))
+        for subcategory in self.subcategories:
+            self.combo_subcategory.addItem(subcategory)
+
+    
+    def update_subcategory_combobox2(self):
+        self.combo_subcategory_of_questions.clear()
+        self.subcategories = get_subcategories_names(str(self.combo_category_of_questions.currentText()))
+        for subcategory in self.subcategories:
+            self.combo_subcategory_of_questions.addItem(subcategory)
+
 
     def add_main_category(self):
         global cursor
@@ -362,7 +438,7 @@ class MainAppWindow(QMainWindow):
                                         VALUES ({0}, "{1}", "{2}");""".format(
                                             current_id,
                                             self.sub_category.text(),
-                                            self.super_category.text()
+                                            self.combo_supercategory.currentText()
                                         )
                     print(insert_statement)
                     cursor.execute(insert_statement)
@@ -377,7 +453,6 @@ class MainAppWindow(QMainWindow):
                     print("Subkategoria została dodana prawidłowo")
                     self.info_correct_add_category()
                     self.sub_category.setText("")
-                    self.super_category.setText("")
                 else:
                     print("Subkategoria nie została dodana prawidłowo")
                     self.info_incorrect_add_category()
