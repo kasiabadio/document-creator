@@ -16,7 +16,7 @@ def check_db_connection(connection):
 def create_new_tables():
     global cursor
     global connection
-    cursor.execute("CREATE TABLE test(id, nazwa, liczba_pytan);")
+    cursor.execute("CREATE TABLE test(id, nazwa, kategoria, subkategoria, liczba_pytan);")
     cursor.execute("CREATE TABLE test_pytanie(id_testu, id_pytania);")
     cursor.execute("CREATE TABLE pytanie(id, kategoria, subkategoria, pytanie, odpowiedzA, odpowiedzB, odpowiedzC, odpowiedzD, is_correct);")
     cursor.execute("CREATE TABLE nadkategoria(id, nazwa);")
@@ -73,6 +73,26 @@ def get_subcategories_names(category_name):
     cursor.close()
     connection.close()
     return subcategories
+
+
+def get_all_tests():
+    global connection
+    global cursor
+
+    connection = sqlite3.connect("test-gen-db.db")
+    tests = []
+    if check_db_connection(connection):
+        cursor = connection.cursor()
+        cursor.execute("SELECT id, nazwa FROM test;")
+        connection.commit()
+        result = cursor.fetchall()
+        for item in result:
+            tests.append(str(item[0]) + "_" + str(item[1]))
+
+        cursor.close()
+        connection.close()
+
+    return tests
 
 
 class MainAppWindow(QMainWindow):
@@ -229,8 +249,14 @@ class MainAppWindow(QMainWindow):
     def tab3UI(self):
         self.layout = QFormLayout()
         self.widget_show_test_menu.setLayout(self.layout)
-        self.test_name = QtWidgets.QLineEdit(self)
+        
+        self.test_name = QComboBox(self)
+        self.test_name.setFixedWidth(500)
         self.layout.addRow("Nazwa testu: ", self.test_name)
+        self.tests = get_all_tests()
+        for test in self.tests:
+            self.combo_subcategory.addItem(test)
+        
         
     def tab4UI(self):
         self.layout = QFormLayout()
@@ -278,7 +304,8 @@ class MainAppWindow(QMainWindow):
         pass
 
     def check_is_empty_tab4UI(self):
-        if (self.test_name.text() == "" or self.category_of_questions.text() == "" or 
+        if (self.test_name.text() == "" or str(self.combo_category_of_questions.currentText()) == "" or
+            str(self.combo_subcategory_of_questions.currentText()) == "" or
             self.number_of_questions.text() == ""):
             return True
         return False
@@ -364,6 +391,9 @@ class MainAppWindow(QMainWindow):
             connection.close()
             
 
+    def update_category_combobox(self):
+        pass
+
     def update_subcategory_combobox(self):
 
         self.combo_subcategory.clear()
@@ -371,6 +401,8 @@ class MainAppWindow(QMainWindow):
         for subcategory in self.subcategories:
             self.combo_subcategory.addItem(subcategory)
 
+    def update_category_combobox2(self):
+        pass
     
     def update_subcategory_combobox2(self):
         self.combo_subcategory_of_questions.clear()
@@ -411,6 +443,8 @@ class MainAppWindow(QMainWindow):
                     print("Kategoria została dodana prawidłowo")
                     self.info_correct_add_category()
                     self.main_category.setText("")
+                    self.update_subcategory_combobox()
+                    self.update_subcategory_combobox2()
                 else:
                     print("Kategoria nie została dodana prawidłowo")
                     self.info_incorrect_add_category()
@@ -478,11 +512,12 @@ class MainAppWindow(QMainWindow):
                 if id != -1:
                     current_id = id + 1
                     insert_statement = """INSERT INTO test
-                    (id, nazwa, kategoria, liczba_pytan)
+                    (id, nazwa, kategoria, subkategoria, liczba_pytan)
                     VALUES ({0}, "{1}", {2});""".format(      
                         current_id,
                         self.test_name.text(),
-                        self.category_of_questions.text(),
+                        self.combo_category_of_questions.currentText(),
+                        self.combo_subcategory_of_questions.currentText(),
                         self.number_of_questions.text()
                     )
                     print(insert_statement)
