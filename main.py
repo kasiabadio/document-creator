@@ -256,6 +256,11 @@ class MainAppWindow(QMainWindow):
         self.tests = get_all_tests()
         for test in self.tests:
             self.combo_subcategory.addItem(test)
+
+        self.show_test_btn = QPushButton()
+        self.show_test_btn.setObjectName("show test")
+        self.show_test_btn.setText("Pokaz test")
+        self.layout.addRow("Wczytaj test z bazy testów: ", self.show_test_btn)
         
         
     def tab4UI(self):
