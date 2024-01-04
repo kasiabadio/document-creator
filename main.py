@@ -3,8 +3,16 @@ from PyQt6.QtWidgets import *
 import sys
 import sqlite3
 import time
+import os 
+import subprocess
+import docx
+OPERATING_SYSTEM = "mac"
 cursor = None
 connection = None
+tests_directory = "tests"
+parent_dir = os.getcwd()
+path = os.path.join(parent_dir, tests_directory) 
+
 
 def check_db_connection(connection):
     try:
@@ -87,12 +95,32 @@ def get_all_tests():
         connection.commit()
         result = cursor.fetchall()
         for item in result:
-            tests.append(str(item[0]) + "_" + str(item[1]))
+            item_2 = str(item[0]) + "_" + str(item[1])
+            tests.append(item_2.replace(" ", "_"))
 
-        cursor.close()
-        connection.close()
-
+    cursor.close()
+    connection.close()
     return tests
+
+
+def get_all_questions_from_subcategory(category, subcategory):
+    global connection
+    global cursor
+
+    connection = sqlite3.connect("test-gen-db.db")
+    questions = []
+    if check_db_connection(connection):
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM pytanie WHERE kategoria = '" + category 
+                       + "' AND subkategoria = '" + subcategory + "';")
+        result = cursor.fetchall()
+        for item in result:
+            questions.append(item)
+        
+    cursor.close()
+    connection.close()
+    return questions
+
 
 
 class MainAppWindow(QMainWindow):
@@ -243,25 +271,33 @@ class MainAppWindow(QMainWindow):
         self.layout.addRow("Dodaj podkategorię do bazy podkategorii: ", self.add_sub_category_btn)
 
         self.add_main_category_btn.clicked.connect(self.add_main_category)
+        self.add_main_category_btn.clicked.connect(self.update_category_combobox)
+        self.add_main_category_btn.clicked.connect(self.update_category_combobox2)
+        self.add_main_category_btn.clicked.connect(self.update_category_combobox3)
+
         self.add_sub_category_btn.clicked.connect(self.add_sub_category)
+        self.add_sub_category_btn.clicked.connect(self.update_subcategory_combobox)
+        self.add_sub_category_btn.clicked.connect(self.update_subcategory_combobox2)
 
 
     def tab3UI(self):
         self.layout = QFormLayout()
         self.widget_show_test_menu.setLayout(self.layout)
-        
-        self.test_name = QComboBox(self)
-        self.test_name.setFixedWidth(500)
-        self.layout.addRow("Nazwa testu: ", self.test_name)
+    
+        self.combo_test_name = QComboBox(self)
+        self.combo_test_name.setFixedWidth(500)
+        self.layout.addRow("Nazwa testu: ", self.combo_test_name)
         self.tests = get_all_tests()
         for test in self.tests:
-            self.combo_subcategory.addItem(test)
+            self.combo_test_name.addItem(test)
 
         self.show_test_btn = QPushButton()
         self.show_test_btn.setObjectName("show test")
-        self.show_test_btn.setText("Pokaz test")
+        self.show_test_btn.setText("Pokaż test")
         self.layout.addRow("Wczytaj test z bazy testów: ", self.show_test_btn)
-        
+
+        self.show_test_btn.clicked.connect(self.read_test)
+
         
     def tab4UI(self):
         self.layout = QFormLayout()
@@ -296,6 +332,7 @@ class MainAppWindow(QMainWindow):
         self.layout.addRow("Dodaj test do bazy testów: ", self.generate_test_btn)
 
         self.generate_test_btn.clicked.connect(self.generate_test)
+        self.generate_test_btn.clicked.connect(self.update_tests_combobox)
         
 
     def check_is_empty_tab1UI(self):
@@ -397,23 +434,45 @@ class MainAppWindow(QMainWindow):
             
 
     def update_category_combobox(self):
-        pass
+        self.combo_category.clear()
+        self.categories = get_categories_names()
+        for category in self.categories:
+            self.combo_category.addItem(category)
+
 
     def update_subcategory_combobox(self):
-
         self.combo_subcategory.clear()
         self.subcategories = get_subcategories_names(str(self.combo_category.currentText()))
         for subcategory in self.subcategories:
             self.combo_subcategory.addItem(subcategory)
 
+
     def update_category_combobox2(self):
-        pass
+        self.combo_category_of_questions.clear()
+        self.categories = get_categories_names()
+        for category in self.categories:
+            self.combo_category_of_questions.addItem(category)
     
+
     def update_subcategory_combobox2(self):
         self.combo_subcategory_of_questions.clear()
         self.subcategories = get_subcategories_names(str(self.combo_category_of_questions.currentText()))
         for subcategory in self.subcategories:
             self.combo_subcategory_of_questions.addItem(subcategory)
+
+
+    def update_category_combobox3(self):
+        self.combo_supercategory.clear()
+        self.categories = get_categories_names()
+        for category in self.categories:
+            self.combo_supercategory.addItem(category)
+
+
+    def update_tests_combobox(self):
+        self.combo_test_name.clear()
+        self.tests = get_all_tests()
+        for test in self.tests:
+            self.combo_test_name.addItem(test)
 
 
     def add_main_category(self):
@@ -501,6 +560,14 @@ class MainAppWindow(QMainWindow):
                 self.info_incorrect_add_category()
 
 
+    def read_test(self):
+        current_path =  path + "/" + str(self.combo_test_name.currentText()) + ".docx"
+        if OPERATING_SYSTEM == "mac":
+            subprocess.call(('open', current_path))
+
+        if OPERATING_SYSTEM == "windows":
+            os.startfile(current_path)
+
     def generate_test(self):
         global cursor
         global connection
@@ -514,15 +581,16 @@ class MainAppWindow(QMainWindow):
                 cursor = connection.cursor()
                 print("Dodawanie testu do bazy testów")
                 id = get_latest_id("test")
+                current_id = -1
                 if id != -1:
                     current_id = id + 1
                     insert_statement = """INSERT INTO test
                     (id, nazwa, kategoria, subkategoria, liczba_pytan)
-                    VALUES ({0}, "{1}", {2});""".format(      
+                    VALUES ({0}, "{1}", "{2}", "{3}", {4});""".format(      
                         current_id,
                         self.test_name.text(),
-                        self.combo_category_of_questions.currentText(),
-                        self.combo_subcategory_of_questions.currentText(),
+                        str(self.combo_category_of_questions.currentText()),
+                        str(self.combo_subcategory_of_questions.currentText()),
                         self.number_of_questions.text()
                     )
                     print(insert_statement)
@@ -534,8 +602,12 @@ class MainAppWindow(QMainWindow):
             
                 inserted_id = get_latest_id("test")
                 if inserted_id == id + 1:
+                    self.generate_questions(current_id)
                     print("Test został dodany prawidłowo")
                     self.info_correct_add_test()
+                    self.test_name.setText("")
+                    self.number_of_questions.setText("")
+                    
                 else:
                     print("Test nie został dodany prawidłowo")
                     self.info_incorrect_add_test()
@@ -548,6 +620,18 @@ class MainAppWindow(QMainWindow):
             connection.close()
 
 
+    def generate_questions(self, test_id):
+        category = str(self.combo_category_of_questions.currentText())
+        subcategory = str(self.combo_subcategory_of_questions.currentText())
+        number_of_questions = self.number_of_questions.text()
+        questions = get_all_questions_from_subcategory(category, subcategory)
+        print(questions)
+
+        # TODO: wpisz do bazy test_pytanie wszystkie id_testu i id_pytania
+        # TODO: wygeneruj plik z nazwą id+testu
+        # TODO: wpisz tam pytania w odpowiednim formacie
+
+
 def window():
     global cursor
     global connection
@@ -555,10 +639,14 @@ def window():
     app = QApplication(sys.argv)
     connection = sqlite3.connect("test-gen-db.db")
     create_new = False # WARNING: only change to True on first run of program!
+    create_dir = False
     if check_db_connection(connection):
         cursor = connection.cursor()
         if create_new:
             create_new_tables()
+        
+        if create_dir:
+            os.mkdir(path) 
         
         connection.close()
 
