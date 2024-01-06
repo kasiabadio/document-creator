@@ -439,8 +439,6 @@ class MainAppWindow(QMainWindow):
                 print("Błąd dodawania do bazy danych: brak połączenia")
                 self.info_incorrect_add_question()
             
-            cursor.close()
-            connection.close()
             
 
     def update_category_combobox(self):
@@ -527,8 +525,6 @@ class MainAppWindow(QMainWindow):
                 print("Błąd dodawania do bazy danych: brak połączenia")
                 self.info_incorrect_add_category()
 
-            cursor.close()
-            connection.close()
 
 
     def add_sub_category(self):
@@ -567,9 +563,6 @@ class MainAppWindow(QMainWindow):
                 else:
                     print("Subkategoria nie została dodana prawidłowo")
                     self.info_incorrect_add_category()
-
-                cursor.close()
-                connection.close()
 
             else:
                 print("Błąd dodawania do bazy danych: brak połączenia")
@@ -642,7 +635,12 @@ class MainAppWindow(QMainWindow):
         number_of_questions = self.number_of_questions.text()
 
         questions = get_all_questions_from_subcategory(category, subcategory)
+        questions_ids = []
+        for question in questions:
+            questions_ids.append(question[0])
+
         print(questions)
+        print(questions_ids)
 
         if len(questions) < int(number_of_questions):
             print("Za mało pytań w podkategorii by ułożyć test")
@@ -650,16 +648,16 @@ class MainAppWindow(QMainWindow):
             return False
         else:
             print("Wystarczająca liczba pytań by ułożyć test")
-            numbers = list(range(1, int(number_of_questions)+1))
             selected_questions = []
             i = 0
-            while i < len(numbers):
-                selected = random.choice(numbers)
+            while i < len(questions_ids):
+                selected = random.choice(questions_ids)
                 while selected in selected_questions:
-                    selected = random.choice(numbers)
+                    selected = random.choice(questions_ids)
                 selected_questions.append(selected)
                 i += 1
 
+            print("SELECTED:" + str(selected_questions))
             for question_id in selected_questions:
                 insert_statement = """INSERT INTO test_pytanie
                 (id_testu, id_pytania)
@@ -741,7 +739,7 @@ class MainAppWindow(QMainWindow):
                 run_answ = paragraph_answ.add_run("Poprawna odp. : C (" + rest_answers[2] + ")")
 
             elif choice == 3:
-                run_answ = paragraph_answ.add_run("Poprawna odp. : D" + rest_answers[2] + ")")
+                run_answ = paragraph_answ.add_run("Poprawna odp. : D (" + rest_answers[2] + ")")
 
             run_answ.font.name = 'Arial'
             run_answ.font.size = docx.shared.Pt(12)
