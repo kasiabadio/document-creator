@@ -4,6 +4,10 @@
 * [Technologies](#technologies)
 * [Setup](#setup)
 
+
+https://github.com/kasiabadio/document-creator/assets/53990881/769bf440-7534-4151-856c-87edf990d5ba
+
+
 ## General info
 This project is student's test generator.
 
