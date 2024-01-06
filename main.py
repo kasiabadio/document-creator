@@ -671,21 +671,83 @@ class MainAppWindow(QMainWindow):
                 cursor.execute(insert_statement)
                 time.sleep(5)
                 connection.commit()
-            
-            doc = docx.Document()
-            test_temp = self.test_name.text()
-            test_name_replaced = test_temp.replace(" ", "_")
-            name = "tests/" + str(test_id) + "_" + test_name_replaced + ".docx"
-            doc.save(name)
 
-            self.write_questions_to_docx(name, selected_questions)
+            self.write_questions_to_docx(test_id, selected_questions)
             return True
             
 
-    def write_questions_to_docx(self, docx_path, selected_questions):
+    def write_questions_to_docx(self, test_id, selected_questions):
+
+        doc = docx.Document()
+        test_temp = self.test_name.text()
+        test_name_replaced = test_temp.replace(" ", "_")
+        docx_path = "tests/" + str(test_id) + "_" + test_name_replaced + ".docx"
+
+        doc_answers = docx.Document()
+        docx_path_answers = "tests/" + str(test_id) + "_" + test_name_replaced + "_answers" + ".docx"
+        
         questions = get_all_selected_questions(selected_questions)
-        for question in questions:
-            print(str(question))
+        for index, question in enumerate(questions):
+            question_text = question[3]
+
+            paragraph = doc.add_paragraph()
+            run = paragraph.add_run(str(index+1) + ". " + question_text)
+            run.font.name = 'Arial'
+            run.font.size = docx.shared.Pt(12)
+
+            paragraph_answ = doc_answers.add_paragraph()
+            run_answ = paragraph_answ.add_run(str(index+1) + ". " + question_text)
+            run_answ.font.name = 'Arial'
+            run_answ.font.size = docx.shared.Pt(12)
+    
+            correct_answer_text = -1
+            rest_answers = []
+            correct_answer = question[8]
+            t = [0, 1, 2, 3]
+            choice = random.choice(t)
+            if correct_answer == 'odpowiedzA':
+                correct_answer_text = question[4]
+                rest_answers = [question[5], question[6], question[7]]
+
+            elif correct_answer == 'odpowiedzB':
+                correct_answer_text = question[5]
+                rest_answers = [question[4], question[6], question[7]]
+
+            elif correct_answer == 'odpowiedzC':
+                correct_answer_text = question[6]
+                rest_answers = [question[4], question[5], question[7]]
+
+            elif correct_answer == 'odpowiedzD':
+                correct_answer_text = question[7]
+                rest_answers = [question[4], question[5], question[6]]
+    
+            random.shuffle(rest_answers)
+            rest_answers.insert(choice, correct_answer_text)
+
+            paragraph = doc.add_paragraph()
+            run = paragraph.add_run("A: " + rest_answers[0] + " B: " + rest_answers[1] + " C: " + 
+                                    rest_answers[2] + " D: " + rest_answers[3])
+            run.font.name = 'Arial'
+            run.font.size = docx.shared.Pt(12)
+
+            paragraph_answ = doc_answers.add_paragraph()
+            if choice == 0:
+                run_answ = paragraph_answ.add_run("Poprawna odp. : A (" + rest_answers[0] + ")")
+
+            elif choice == 1:
+                run_answ = paragraph_answ.add_run("Poprawna odp. : B (" + rest_answers[1] + ")")
+
+            elif choice == 2:
+                run_answ = paragraph_answ.add_run("Poprawna odp. : C (" + rest_answers[2] + ")")
+
+            elif choice == 3:
+                run_answ = paragraph_answ.add_run("Poprawna odp. : D" + rest_answers[2] + ")")
+
+            run_answ.font.name = 'Arial'
+            run_answ.font.size = docx.shared.Pt(12)
+
+        doc.save(docx_path)
+        doc_answers.save(docx_path_answers)
 
 
 def window():
