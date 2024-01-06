@@ -6,6 +6,7 @@ import time
 import os 
 import subprocess
 import docx
+import random
 OPERATING_SYSTEM = "mac"
 cursor = None
 connection = None
@@ -107,20 +108,27 @@ def get_all_questions_from_subcategory(category, subcategory):
     global connection
     global cursor
 
-    connection = sqlite3.connect("test-gen-db.db")
     questions = []
-    if check_db_connection(connection):
-        cursor = connection.cursor()
-        cursor.execute("SELECT * FROM pytanie WHERE kategoria = '" + category 
+    cursor.execute("SELECT * FROM pytanie WHERE kategoria = '" + category 
                        + "' AND subkategoria = '" + subcategory + "';")
-        result = cursor.fetchall()
-        for item in result:
-            questions.append(item)
+    result = cursor.fetchall()
+    for item in result:
+        questions.append(item)
         
-    cursor.close()
-    connection.close()
     return questions
 
+
+def get_all_selected_questions(selected_questions):
+    global connection
+    global cursor
+
+    questions = []
+    for question_id in selected_questions:
+        cursor.execute("SELECT * FROM pytanie WHERE id = " + str(question_id) + ";")
+        result = cursor.fetchone()
+        questions.append(result)
+
+    return questions
 
 
 class MainAppWindow(QMainWindow):
@@ -373,6 +381,8 @@ class MainAppWindow(QMainWindow):
     def info_incorrect_add_test(self):
         QMessageBox.warning(self, 'Nie dodano testu do bazy danych!', 'Błąd dodawania testu do bazy.')
 
+    def info_incorrect_number_of_questions(self):
+        QMessageBox.warning(self, 'Za mało pytań w bazie pytań w podanej podkategorii!', 'Dodaj więcej pytań.')
 
     def add_new_question(self):
         global cursor
@@ -517,6 +527,9 @@ class MainAppWindow(QMainWindow):
                 print("Błąd dodawania do bazy danych: brak połączenia")
                 self.info_incorrect_add_category()
 
+            cursor.close()
+            connection.close()
+
 
     def add_sub_category(self):
         global cursor
@@ -555,6 +568,9 @@ class MainAppWindow(QMainWindow):
                     print("Subkategoria nie została dodana prawidłowo")
                     self.info_incorrect_add_category()
 
+                cursor.close()
+                connection.close()
+
             else:
                 print("Błąd dodawania do bazy danych: brak połączenia")
                 self.info_incorrect_add_category()
@@ -584,25 +600,27 @@ class MainAppWindow(QMainWindow):
                 current_id = -1
                 if id != -1:
                     current_id = id + 1
-                    insert_statement = """INSERT INTO test
-                    (id, nazwa, kategoria, subkategoria, liczba_pytan)
-                    VALUES ({0}, "{1}", "{2}", "{3}", {4});""".format(      
-                        current_id,
-                        self.test_name.text(),
-                        str(self.combo_category_of_questions.currentText()),
-                        str(self.combo_subcategory_of_questions.currentText()),
-                        self.number_of_questions.text()
-                    )
-                    print(insert_statement)
-                    cursor.execute(insert_statement)
-                    time.sleep(5)
-                    connection.commit()
+                    is_generated = self.generate_questions(current_id)
+                    if is_generated:
+                        insert_statement = """INSERT INTO test
+                        (id, nazwa, kategoria, subkategoria, liczba_pytan)
+                        VALUES ({0}, "{1}", "{2}", "{3}", {4});""".format(      
+                            current_id,
+                            self.test_name.text(),
+                            str(self.combo_category_of_questions.currentText()),
+                            str(self.combo_subcategory_of_questions.currentText()),
+                            self.number_of_questions.text()
+                        )
+                        print(insert_statement)
+                        cursor.execute(insert_statement)
+                        time.sleep(5)
+                        connection.commit()
                 else:
                     print("Błąd wczytania id z bazy danych test")
             
                 inserted_id = get_latest_id("test")
                 if inserted_id == id + 1:
-                    self.generate_questions(current_id)
+                    
                     print("Test został dodany prawidłowo")
                     self.info_correct_add_test()
                     self.test_name.setText("")
@@ -612,24 +630,62 @@ class MainAppWindow(QMainWindow):
                     print("Test nie został dodany prawidłowo")
                     self.info_incorrect_add_test()
 
+    
             else:
                 print("Błąd dodawania do bazy danych: brak połączenia")
                 self.info_incorrect_add_test()
-
-            cursor.close()
-            connection.close()
 
 
     def generate_questions(self, test_id):
         category = str(self.combo_category_of_questions.currentText())
         subcategory = str(self.combo_subcategory_of_questions.currentText())
         number_of_questions = self.number_of_questions.text()
+
         questions = get_all_questions_from_subcategory(category, subcategory)
         print(questions)
 
-        # TODO: wpisz do bazy test_pytanie wszystkie id_testu i id_pytania
-        # TODO: wygeneruj plik z nazwą id+testu
-        # TODO: wpisz tam pytania w odpowiednim formacie
+        if len(questions) < int(number_of_questions):
+            print("Za mało pytań w podkategorii by ułożyć test")
+            self.info_incorrect_number_of_questions()
+            return False
+        else:
+            print("Wystarczająca liczba pytań by ułożyć test")
+            numbers = list(range(1, int(number_of_questions)+1))
+            selected_questions = []
+            i = 0
+            while i < len(numbers):
+                selected = random.choice(numbers)
+                while selected in selected_questions:
+                    selected = random.choice(numbers)
+                selected_questions.append(selected)
+                i += 1
+
+            for question_id in selected_questions:
+                insert_statement = """INSERT INTO test_pytanie
+                (id_testu, id_pytania)
+                VALUES ({0}, {1});""".format(      
+                    test_id,
+                    question_id
+                )
+                print(insert_statement)
+                cursor.execute(insert_statement)
+                time.sleep(5)
+                connection.commit()
+            
+            doc = docx.Document()
+            test_temp = self.test_name.text()
+            test_name_replaced = test_temp.replace(" ", "_")
+            name = "tests/" + str(test_id) + "_" + test_name_replaced + ".docx"
+            doc.save(name)
+
+            self.write_questions_to_docx(name, selected_questions)
+            return True
+            
+
+    def write_questions_to_docx(self, docx_path, selected_questions):
+        questions = get_all_selected_questions(selected_questions)
+        for question in questions:
+            print(str(question))
 
 
 def window():
